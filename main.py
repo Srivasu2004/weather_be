@@ -79,8 +79,6 @@ def home():
             OPENWEATHER_API_KEY
         )
     }
-
-
 @app.post("/get_weather")
 def incoming_weather_params(
     city: str = Query(...),
@@ -99,7 +97,14 @@ def incoming_weather_params(
             }
         )
 
-        return result
+        # Extract final AI response
+        answer = result["messages"][-1].content
+
+        return {
+            "city": city,
+            "question": question,
+            "answer": answer
+        }
 
     except Exception as e:
         raise HTTPException(
