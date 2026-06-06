@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Query, HTTPException
 from dotenv import load_dotenv
-
 from langchain_groq import ChatGroq
 from langchain.tools import tool
 from langchain.agents import create_agent
@@ -8,7 +7,6 @@ from langchain.agents import create_agent
 import requests
 import os
 
-# Load .env file
 load_dotenv()
 
 app = FastAPI(
@@ -20,14 +18,10 @@ app = FastAPI(
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
+# Validate Groq Key
 if not GROQ_API_KEY:
-    raise ValueError(
-        "GROQ_API_KEY not found in .env file"
-    )
-
-if not OPENWEATHER_API_KEY:
-    raise ValueError(
-        "OPENWEATHER_API_KEY not found in .env file"
+    raise RuntimeError(
+        "GROQ_API_KEY environment variable is missing"
     )
 
 # LLM
@@ -43,24 +37,34 @@ def get_temp_details(city: str):
     Get weather details of a city.
     """
 
-    url = (
-        f"https://api.openweathermap.org/data/2.5/weather"
-        f"?q={city}"
-        f"&appid={OPENWEATHER_API_KEY}"
-        f"&units=metric"
-    )
-
-    response = requests.get(url)
-
-    if response.status_code != 200:
+    if not OPENWEATHER_API_KEY:
         return {
-            "error": "Unable to fetch weather"
+            "error": "OPENWEATHER_API_KEY is not configured"
         }
 
-    return response.json()
+    url = (
+        "https://api.openweathermap.org/data/2.5/weather"
+        f"?q={city}"
+        f"&appid={OPENWEATHER_API_KEY}"
+        "&units=metric"
+    )
+
+    try:
+        response = requests.get(url, timeout=10)
+
+        if response.status_code != 200:
+            return {
+                "error": response.json()
+            }
+
+        return response.json()
+
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
 
 
-# Create Agent
 agent = create_agent(
     model=llm,
     tools=[get_temp_details]
@@ -70,7 +74,10 @@ agent = create_agent(
 @app.get("/")
 def home():
     return {
-        "message": "Weather Agent Running Successfully"
+        "message": "Weather Agent Running Successfully",
+        "weather_api_configured": bool(
+            OPENWEATHER_API_KEY
+        )
     }
 
 
@@ -86,10 +93,7 @@ def incoming_weather_params(
                 "messages": [
                     {
                         "role": "user",
-                        "content": (
-                            f"City: {city}. "
-                            f"Question: {question}"
-                        )
+                        "content": f"City: {city}. Question: {question}"
                     }
                 ]
             }
@@ -109,7 +113,6 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",
-        port=8000,
-        reload=True
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000))
     )
