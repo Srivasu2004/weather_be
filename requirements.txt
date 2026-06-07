@@ -7,3 +7,7 @@ langchain
 langchain-groq
 
 pydantic
+fastapi
+uvicorn
+requests
+langchain
