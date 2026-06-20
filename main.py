@@ -5,20 +5,24 @@ import os
 
 app = FastAPI(title="AI Travel Planner")
 
-# ==================================
+# ==========================
 # CONFIG
-# ==================================
+# ==========================
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-# ==================================
-# WEATHER AGENT
-# ==================================
+# ==========================
+# WEATHER TOOL
+# ==========================
 
-def get_weather(city: str):
+@tool
+def weather_tool(city: str):
+    """Get current weather information for a city"""
 
     if not OPENWEATHER_API_KEY:
-        return {"error": "OpenWeather API Key not configured"}
+        return {
+            "error": "OpenWeather API Key not configured"
+        }
 
     try:
         url = "https://api.openweathermap.org/data/2.5/weather"
@@ -29,20 +33,23 @@ def get_weather(city: str):
             "units": "metric"
         }
 
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(
+            url,
+            params=params,
+            timeout=10
+        )
+
+        data = response.json()
 
         if response.status_code != 200:
             return {
-                "error": response.json().get(
+                "error": data.get(
                     "message",
                     "Unable to fetch weather"
                 )
             }
 
-        data = response.json()
-
         return {
-            "city": city,
             "temperature": data["main"]["temp"],
             "humidity": data["main"]["humidity"],
             "weather": data["weather"][0]["description"],
@@ -50,116 +57,113 @@ def get_weather(city: str):
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "error": str(e)
+        }
 
 
-# ==================================
-# DESTINATION AGENT
-# ==================================
+# ==========================
+# RECOMMENDATION TOOL
+# ==========================
 
-def destination_recommendation(city: str):
+@tool
+def recommendation_tool(city: str):
+    """Get travel recommendations for a city"""
 
     return {
-        "city": city,
-        "recommendations": [
+        "results": [
             f"Visit famous attractions in {city}",
             f"Try local food in {city}",
-            f"Explore cultural landmarks in {city}"
+            f"Explore cultural landmarks in {city}",
+            f"Visit local markets in {city}",
+            f"Take a sightseeing tour in {city}"
         ]
     }
 
 
-# ==================================
-# BUDGET AGENT
-# ==================================
+# ==========================
+# BUDGET TOOL
+# ==========================
 
-def calculate_budget(days: int, cost_per_day: float):
-
-    total = days * cost_per_day
+@tool
+def budget_tool(
+    days: int,
+    budget_per_day: float
+):
+    """Calculate travel budget"""
 
     return {
         "days": days,
-        "cost_per_day": cost_per_day,
-        "total_budget": total
+        "budget_per_day": budget_per_day,
+        "total_budget": days * budget_per_day
     }
 
 
-# ==================================
-# ITINERARY AGENT
-# ==================================
+# ==========================
+# ITINERARY TOOL
+# ==========================
 
-def generate_itinerary(city: str, days: int):
+@tool
+def itinerary_tool(
+    city: str,
+    days: int
+):
+    """Generate trip itinerary"""
 
     itinerary = []
 
     for day in range(1, days + 1):
-        itinerary.append(
-            {
-                "day": day,
-                "plan": f"Explore top attractions in {city}"
-            }
-        )
+
+        itinerary.append({
+            "day": day,
+            "plan": f"Explore attractions in {city}"
+        })
 
     return itinerary
 
 
-# ==================================
-# LANGCHAIN TOOLS
-# ==================================
-
-@tool
-def weather_tool(city: str):
-    """Get weather information for a city"""
-    return get_weather(city)
-
-
-@tool
-def destination_tool(city: str):
-    """Get destination recommendations"""
-    return destination_recommendation(city)
-
-
-@tool
-def budget_tool(days: int, cost_per_day: float):
-    """Calculate travel budget"""
-    return calculate_budget(days, cost_per_day)
-
+# ==========================
+# REGISTER TOOLS
+# ==========================
 
 tools = [
     weather_tool,
-    destination_tool,
-    budget_tool
+    recommendation_tool,
+    budget_tool,
+    itinerary_tool
 ]
 
-# ==================================
-# API ROUTES
-# ==================================
+# ==========================
+# HOME
+# ==========================
 
 @app.get("/")
 def home():
+
     return {
-        "message": "AI Travel Planner Running Successfully 🚀"
+        "message": "AI Travel Planner Running 🚀",
+        "tools": [
+            tool.name
+            for tool in tools
+        ]
     }
 
 
+# ==========================
+# WEATHER API
+# ==========================
+
 @app.get("/weather")
 def weather(city: str):
-    return get_weather(city)
+
+    return weather_tool.invoke(
+        {"city": city}
+    )
 
 
-@app.get("/destination")
-def destination(city: str):
-    return destination_recommendation(city)
-
-
-@app.get("/budget")
-def budget(days: int, cost_per_day: float):
-    return calculate_budget(days, cost_per_day)
-
-
-# ==================================
-# MAIN TRAVEL PLANNER
-# ==================================
+# ==========================
+# PLAN TRIP
+# ==========================
 
 @app.get("/plan-trip")
 def plan_trip(
@@ -168,25 +172,40 @@ def plan_trip(
     budget_per_day: float
 ):
 
-    weather_data = get_weather(city)
-
-    budget_data = calculate_budget(
-        days,
-        budget_per_day
+    weather_data = weather_tool.invoke(
+        {"city": city}
     )
 
-    recommendations = destination_recommendation(city)
+    recommendations = recommendation_tool.invoke(
+        {"city": city}
+    )
 
-    itinerary = generate_itinerary(
-        city,
-        days
+    budget_data = budget_tool.invoke(
+        {
+            "days": days,
+            "budget_per_day": budget_per_day
+        }
+    )
+
+    itinerary = itinerary_tool.invoke(
+        {
+            "city": city,
+            "days": days
+        }
     )
 
     return {
+
         "destination": city,
+
         "weather": weather_data,
+
         "budget": budget_data,
+
         "recommendations": recommendations,
+
         "itinerary": itinerary,
-        "message": "Trip Planned Successfully ✈️"
+
+        "message":
+        "Travel Plan Generated Successfully ✈️"
     }
