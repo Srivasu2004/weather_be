@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 import requests
-from langchain.tools import tool
+from langchain.tools import 
+import os
 
 app = FastAPI(title="AI Travel Planner")
 
 # =========================
 # CONFIG (ADD YOUR KEYS)
 # =========================
-OPENWEATHER_API_KEY = "open_weather_key"
+OPENWEATHER_API_KEY =os.getenv ("OPENWEATHER_API_KEY")
 
 
 # =========================
@@ -20,9 +21,6 @@ def get_weather(city: str):
     )
 
     response = requests.get(url)
-
-    print("Status Code:", response.status_code)
-    print("Response:", response.text)
 
     data = response.json()
 
