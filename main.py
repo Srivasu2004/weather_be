@@ -7,7 +7,7 @@ app = FastAPI(title="AI Travel Planner")
 # =========================
 # CONFIG (ADD YOUR KEYS)
 # =========================
-OPENWEATHER_API_KEY = "your_openweather_key"
+OPENWEATHER_API_KEY = "open_weather_key"
 
 
 # =========================
