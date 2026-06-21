@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 import requests
 from langchain.tools import tool
-import os
+
 
 app = FastAPI(title="AI Travel Planner")
 
 # =========================
 # CONFIG (ADD YOUR KEYS)
 # =========================
-OPENWEATHER_API_KEY =os.getenv ("OPENWEATHER_API_KEY")
+OPENWEATHER_API_KEY ="OPENWEATHER_API_KEY"
 
 
 # =========================
